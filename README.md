@@ -22,7 +22,15 @@ INCLUDES: Define o diretório de inclusão (-I./ significa que os .h estão na r
 gcc main.c ${INCLUDES} ${OBJECTS} -g -o ./main</code></pre>
 <ul>
     <li><code>all</code>: Alvo principal, depende dos arquivos objetos (<code>${OBJECTS}</code>).</li>
-    <li>Após gerar os <code>.o</code>, compila o <code>main.c</code> junto com eles e gera o executável <code>./main</code>.</li>
+    <li><code>${OBJECTS}</code> contém todos os arquivos <code>.o</code> que foram previamente compilados a partir dos <code>.c</code>.</li>
+    <li>Exemplo: <code>vector.c</code> vira <code>vector.o</code>, <code>buffer.c</code> vira <code>buffer.o</code>, etc.</li>
+    <li>Esses arquivos <code>.o</code> são chamados de objetos compilados, mas ainda não formam um programa executável.</li>
+    <li>O comando <code>gcc main.c ${INCLUDES} ${OBJECTS} -g -o ./main</code> faz a linkagem, ou seja:</li>
+    <ul>
+        <li>Compila <code>main.c</code> junto com os arquivos <code>.o</code> de <code>buffer</code>, <code>vector</code> e outros.</li>
+        <li>Inclui os cabeçalhos (<code>.h</code>) por meio de <code>#include</code>, garantindo que <code>main.c</code> tenha acesso às funções definidas nos <code>.c</code>.</li>
+        <li>Gera o executável final (<code>./main</code>), que pode ser rodado diretamente no terminal.</li>
+    </ul>
 </ul>
 
 <h3>3️⃣ Como Cada <code>.c</code> Vira um <code>.o</code></h3>

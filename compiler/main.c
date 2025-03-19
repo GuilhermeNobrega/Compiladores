@@ -1,10 +1,13 @@
 #include <stdio.h>
 #include "helpers/vector.h"
 #include "compiler.h"  // Inclui a função compile_file()
+#include "teste1.h"
 
 int main() {
     printf("Compiladores - TURMA asd\n");
-
+    printf("Execução função multi\n");
+    multi(3);
+    //-----------------------------------------
     // Criando um vetor para armazenar inteiros
     struct vector* vec = vector_create(sizeof(int));
 

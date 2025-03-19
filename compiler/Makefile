@@ -1,4 +1,4 @@
-OBJECTS= ./build/compiler.o ./build/cprocess.o ./build/helpers/buffer.o ./build/helpers/vector.o
+OBJECTS= ./build/compiler.o ./build/cprocess.o ./build/helpers/buffer.o ./build/helpers/vector.o ./build/teste1.o ./build/lex_process.o ./build/lexer.o
 INCLUDES= -I./
 
 all: ${OBJECTS}
@@ -15,6 +15,15 @@ all: ${OBJECTS}
 
 ./build/helpers/vector.o: ./helpers/vector.c
 	gcc ./helpers/vector.c ${INCLUDES} -o ./build/helpers/vector.o -g -c
+
+./build/teste1.o: ./teste1.c
+	gcc ./teste1.c ${INCLUDES} -o ./build/teste1.o -g -c
+
+./build/lex_process.o: ./lex_process.c
+	gcc ./lex_process.c ${INCLUDES} -o ./build/lex_process.o -g -c
+
+./build/lexer.o: ./lexer.c
+	gcc ./lexer.c ${INCLUDES} -o ./build/lexer.o -g -c
 
 clean:
 	rm ./main

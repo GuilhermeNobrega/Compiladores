@@ -25,3 +25,13 @@ int compile_file(const char* filename, const char* out_filename, int flags) {
 
     return COMPILER_FILE_COMPILED_OK;
 }
+
+void compiler_error(struct compile_process* compiler, const char* message) {
+    fprintf(stderr, "Erro no compilador (%s:%d:%d): %s\n",
+            compiler->cfile.abs_path,
+            compiler->pos.line,
+            compiler->pos.col,
+            message);
+    exit(1);
+}
+

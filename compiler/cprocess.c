@@ -30,9 +30,6 @@ void compile_process_push_char(struct lex_process* lex_process, char c) {
 /* END – LAB 2 --------------------------------------*/
 
 
-
-
-
 struct compile_process* compile_process_create(const char* filename, const char* filename_out, int flags) {
     FILE *file = fopen(filename, "r");
 

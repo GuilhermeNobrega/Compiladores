@@ -6,3 +6,6 @@ var1 _identificador teste123 _t123
 linha1
 linha2
 //comentario
+return
+"hello world"
+/*comentakfkasd*/

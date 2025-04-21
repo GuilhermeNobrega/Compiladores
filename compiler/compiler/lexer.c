@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdlib.h>
 #include "helpers/vector.h"
 #include "helpers/buffer.h"
 #include "compiler.h"
@@ -16,10 +17,14 @@ struct token* read_next_token();
 static struct lex_process* lex_process;
 static struct token tmp_token;
 
-// Lista de palavras reservadas da linguagem C
-const char* keywords[] = {"auto", "break", "case", "char", "const", "continue", "default", "do", "double", "else", "enum", "extern", "float", "for", "goto", "if", "int", "long", "register", "return", "short", "signed", "sizeof", "static", "struct", "switch", "typedef", "union", "unsigned", "void", "volatile", "while", NULL};
+const char* keywords[] = {
+    "auto", "break", "case", "char", "const", "continue", "default",
+    "do", "double", "else", "enum", "extern", "float", "for", "goto",
+    "if", "int", "long", "register", "return", "short", "signed",
+    "sizeof", "static", "struct", "switch", "typedef", "union",
+    "unsigned", "void", "volatile", "while", NULL
+};
 
-// Função para verificar se um identificador é uma palavra reservada
 int is_keyword(const char* str) {
     for (int i = 0; keywords[i] != NULL; i++) {
         if (strcmp(str, keywords[i]) == 0) {
@@ -29,7 +34,6 @@ int is_keyword(const char* str) {
     return 0;
 }
 
-// Pegar um caracter do arquivo, sem mudar a posicao de leitura.
 static char peekc() {
     return lex_process->function->peek_char(lex_process);
 }
@@ -44,7 +48,6 @@ static char nextc() {
     return c;
 }
 
-// Adicionar um caracter no arquivo.
 static void pushc(char c) {
     lex_process->function->push_char(lex_process, c);
 }
@@ -56,7 +59,6 @@ static struct pos lex_file_position() {
 struct token* token_create(struct token* _token) {
     memcpy(&tmp_token, _token, sizeof(struct token));
     tmp_token.pos = lex_file_position();
-
     return &tmp_token;
 }
 
@@ -69,25 +71,61 @@ static struct token* handle_whitespace() {
     if (last_token) {
         last_token->whitespace = true;
     }
-
     nextc();
     return read_next_token();
 }
 
-const char* read_number_str() {
-    const char* num = NULL;
+unsigned long long read_number() {
     struct buffer* buffer = buffer_create();
     char c = peekc();
-    LEX_GETC_IF(buffer, c, (c >= '0' && c <= '9'));
 
-    buffer_write(buffer, 0x00);
-    printf("Token: %s\n", buffer->data);
-    return buffer_ptr(buffer);
-}
+    if (c == '0') {
+        buffer_write(buffer, nextc()); // pega o '0'
+        c = peekc();
 
-unsigned long long read_number() {
-    const char* s = read_number_str();
-    return atoll(s);
+        if (c == 'x' || c == 'X') {
+            buffer_write(buffer, nextc()); // pega o 'x'
+            while (isxdigit(peekc())) {
+                buffer_write(buffer, nextc());
+            }
+            buffer_write(buffer, 0x00);
+            const char* hex = buffer_ptr(buffer);
+            unsigned long long value = strtoull(hex, NULL, 16);
+            printf("Token número hexadecimal: %s (dec: %llu)\n", hex, value);
+            return value;
+        } else if (c == 'b' || c == 'B') {
+            buffer_write(buffer, nextc()); // pega o 'b'
+            while (peekc() == '0' || peekc() == '1') {
+                buffer_write(buffer, nextc());
+            }
+            buffer_write(buffer, 0x00);
+            const char* bin = buffer_ptr(buffer);
+            unsigned long long value = 0;
+            for (int i = 2; bin[i] != '\0'; i++) {
+                value = value * 2 + (bin[i] - '0');
+            }
+            printf("Token número binário: %s (dec: %llu)\n", bin, value);
+            return value;
+        } else {
+            while (isdigit(peekc())) {
+                buffer_write(buffer, nextc());
+            }
+            buffer_write(buffer, 0x00);
+            const char* dec = buffer_ptr(buffer);
+            unsigned long long value = strtoull(dec, NULL, 10);
+            printf("Token número decimal: %s\n", dec);
+            return value;
+        }
+    } else {
+        while (isdigit(peekc())) {
+            buffer_write(buffer, nextc());
+        }
+        buffer_write(buffer, 0x00);
+        const char* dec = buffer_ptr(buffer);
+        unsigned long long value = strtoull(dec, NULL, 10);
+        printf("Token número decimal: %s\n", dec);
+        return value;
+    }
 }
 
 struct token* token_make_number_for_value(unsigned long number) {
@@ -98,43 +136,78 @@ struct token* token_make_number() {
     return token_make_number_for_value(read_number());
 }
 
-// Função para ler uma string entre aspas (TOKEN_TYPE_STRING)
+
 const char* read_string() {
     struct buffer* buffer = buffer_create();
-    nextc(); // Pular a aspa inicial
+    nextc(); // Skip opening quote
     char c = peekc();
     while (c != '"' && c != EOF) {
         buffer_write(buffer, c);
         nextc();
         c = peekc();
     }
-    nextc(); // Pular a aspa final
+    nextc(); // Skip closing quote
     buffer_write(buffer, 0x00);
     printf("Token string: \"%s\"\n", buffer->data);
     return buffer_ptr(buffer);
 }
 
-// Função para ler um comentário (TOKEN_TYPE_COMMENT)
-void skip_comment() {
-    char c = nextc();
-    if (c == '/') {
-        // Comentário de linha (//)
+const char* read_comment() {
+    struct buffer* buffer = buffer_create();
+    char first = nextc();
+
+    if (first == '/') {
+        // Comentário de linha
+        buffer_write(buffer, '/');
+        buffer_write(buffer, '/');
         while (peekc() != '\n' && peekc() != EOF) {
-            nextc();
+            buffer_write(buffer, nextc());
         }
-    } else if (c == '*') {
-        // Comentário de bloco (/*...*/)
-        c = nextc();
-        while (!(c == '*' && peekc() == '/')) {
+    } else if (first == '*') {
+        // Comentário de bloco
+        buffer_write(buffer, '/');
+        buffer_write(buffer, '*');
+        char c = peekc();
+        char next;
+
+        while (1) {
+            if (c == EOF) break;
+
             c = nextc();
-            if (c == EOF) break;  // Se atingir o final do arquivo, sai do comentário
+            buffer_write(buffer, c);
+
+            if (c == '*' && peekc() == '/') {
+                buffer_write(buffer, nextc()); // pega '/'
+                break;
+            }
+
+            c = peekc();
         }
-        nextc(); // Pular o '*' de fechamento
-        nextc(); // Pular o '/' de fechamento
+    } else {
+        // Caso inesperado, como "*/" sem "/*"
+        buffer_write(buffer, '/');
+        buffer_write(buffer, first);
     }
+
+    buffer_write(buffer, 0x00);
+    printf("Token comentário: %s\n", buffer->data);
+    return buffer_ptr(buffer);
 }
 
-// Função responsável por ler o próximo token do arquivo
+
+const char* read_preprocessor_directive() {
+    struct buffer* buffer = buffer_create();
+    char c = peekc();
+    while (c != '\n' && c != EOF) {
+        buffer_write(buffer, c);
+        nextc();
+        c = peekc();
+    }
+    buffer_write(buffer, 0x00);
+    printf("Token pré-processador: #%s\n", buffer->data);
+    return buffer_ptr(buffer);
+}
+
 struct token* read_next_token() {
     struct token* token = NULL;
     char c = peekc();
@@ -159,15 +232,82 @@ struct token* read_next_token() {
             printf("Token: %c\n", c);
             break;
 
-        case '+': case '-': case '*': case '/': case '=': case '<': case '>': case '!': case '&': case '|':
+        case '+': case '-': case '*': case '=':
+        case '<': case '>': case '!': case '&': case '|':
             nextc();
             token = token_create(&(struct token){.type=TOKEN_TYPE_OPERATOR, .cval=c});
             printf("Token: %c\n", c);
             break;
 
-        case '"': // Se for uma string
+        case '/':
+            nextc();
+            if (peekc() == '/' || peekc() == '*') {
+                token = token_create(&(struct token){
+                    .type = TOKEN_TYPE_COMMENT,
+                    .sval = read_comment()
+                });
+            } else {
+                token = token_create(&(struct token){.type=TOKEN_TYPE_OPERATOR, .cval='/'});
+            }
+            break;
+
+        case '"':
             token = token_create(&(struct token){.type=TOKEN_TYPE_STRING, .sval=read_string()});
             break;
+
+            case '#':
+            nextc(); // consome o '#'
+            token = token_create(&(struct token){
+                .type = TOKEN_TYPE_SYMBOL,
+                .cval = '#'
+            });
+            printf("Token: %c\n", '#');
+            vector_push(lex_process->token_vec, token); // adiciona '#' separado
+        
+            // Agora lemos a palavra que vem depois do #
+            while (peekc() == ' ' || peekc() == '\t') nextc(); // pula espaços
+            {
+                struct buffer* buf = buffer_create();
+                while (isalnum(peekc()) || peekc() == '_') {
+                    buffer_write(buf, nextc());
+                }
+                buffer_write(buf, 0x00);
+                const char* id = buffer_ptr(buf);
+                token = token_create(&(struct token){.type=TOKEN_TYPE_IDENTIFIER, .sval=id});
+                printf("Token: %s\n", id);
+                vector_push(lex_process->token_vec, token); // adiciona o include por exemplo
+            }
+        
+            // Agora o argumento, como <stdio.h> ou "meu.h"
+            while (peekc() == ' ' || peekc() == '\t') nextc(); // pula espaços
+            {
+                struct buffer* buf = buffer_create();
+                char c = peekc();
+                if (c == '<') {
+                    buffer_write(buf, nextc()); // escreve '<'
+                    while ((c = peekc()) != '>' && c != EOF) {
+                        buffer_write(buf, nextc());
+                    }
+                    if (peekc() == '>') buffer_write(buf, nextc()); // fecha com '>'
+                } else if (c == '"') {
+                    buffer_write(buf, nextc()); // escreve '"'
+                    while ((c = peekc()) != '"' && c != EOF) {
+                        buffer_write(buf, nextc());
+                    }
+                    if (peekc() == '"') buffer_write(buf, nextc()); // fecha com '"'
+                } else {
+                    // apenas lê como identificador
+                    while (!isspace(peekc()) && peekc() != EOF) {
+                        buffer_write(buf, nextc());
+                    }
+                }
+                buffer_write(buf, 0x00);
+                const char* arg = buffer_ptr(buf);
+                token = token_create(&(struct token){.type=TOKEN_TYPE_IDENTIFIER, .sval=arg});
+                printf("Token: %s\n", arg);
+            }
+            break;
+        
 
         default:
             if (isdigit(c)) {
@@ -203,7 +343,6 @@ int lex(struct lex_process* process) {
     process->pos.filename = process->compiler->cfile.abs_path;
 
     struct token* token = read_next_token();
-
     while (token) {
         vector_push(process->token_vec, token);
         token = read_next_token();
@@ -211,5 +350,4 @@ int lex(struct lex_process* process) {
 
     return LEXICAL_ANALYSIS_ALL_OK;
 }
-
 /* END - LAB 2 ------------------------------------*/

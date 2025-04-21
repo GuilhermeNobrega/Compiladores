@@ -1,9 +1,1 @@
-// adicione: /build/teste.o
-#include <stdio.h>
-
-int main() {
-    printf("Hello, World!\n");
-    return 0;
-}
-/*./build/teste.o: ./teste.c
-	gcc ./teste.c ${INCLUDES} -o ./build/teste.o -g -c*/
+1111 2222 3333 4444 5555 6666 7777 8888 9999

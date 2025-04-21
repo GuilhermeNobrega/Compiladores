@@ -5,7 +5,20 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#define NUMERIC_CASE \
+    case '0': \
+    case '1': \
+    case '2': \
+    case '3': \
+    case '4': \
+    case '5': \
+    case '6': \
+    case '7': \
+    case '8': \
+    case '9'
+
 //--------------------------------LAB2-------------------
+
 struct pos{
     int line;
     int col;
@@ -28,9 +41,11 @@ enum {
     TOKEN_TYPE_NEWLINE
 };
 
-struct token{
+struct token {
     int type;
     int flags;
+
+    struct pos pos; // Identificar onde o token está no arquivo.
 
     union {
         char cval;
@@ -41,12 +56,13 @@ struct token{
         void* any;
     };
 
-    // Sera 'true' se tiver um espaço entre um token e o próximo token.
+    // Será 'true' se tiver um espaço entre um token e o próximo token.
     bool whitespace;
 
     // Retira a string que estiver dentro de parênteses. Ex: (1+2+3) resulta em 1+2+3.
     const char* between_brackets;
 };
+
 
 struct lex_process;
 
@@ -111,5 +127,7 @@ struct compile_process {
 
 int compile_file(const char* filename, const char* out_filename, int flags);
 struct compile_process* compile_process_create(const char* filename, const char* filename_out, int flags);
+
+void compiler_error(struct compile_process* compiler, const char* message);
 
 #endif

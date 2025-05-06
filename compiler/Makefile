@@ -1,8 +1,14 @@
-OBJECTS= ./build/compiler.o ./build/cprocess.o ./build/helpers/buffer.o ./build/helpers/vector.o ./build/teste1.o ./build/lex_process.o ./build/lexer.o
+OBJECTS= ./build/main.o ./build/compiler.o ./build/cprocess.o ./build/helpers/buffer.o ./build/helpers/vector.o \
+         ./build/teste1.o ./build/lex_process.o ./build/lexer.o ./build/parser.o ./build/node.o ./build/token.o
+
+
 INCLUDES= -I./
 
 all: ${OBJECTS}
-	gcc main.c ${INCLUDES} ${OBJECTS} -g -o ./main
+	gcc ${OBJECTS} -g -o ./main
+
+./build/main.o: ./main.c
+	gcc ./main.c ${INCLUDES} -o ./build/main.o -g -c
 
 ./build/compiler.o: ./compiler.c
 	gcc ./compiler.c ${INCLUDES} -o ./build/compiler.o -g -c
@@ -25,6 +31,15 @@ all: ${OBJECTS}
 ./build/lexer.o: ./lexer.c
 	gcc ./lexer.c ${INCLUDES} -o ./build/lexer.o -g -c
 
+./build/parser.o: ./parser.c
+	gcc ./parser.c ${INCLUDES} -o ./build/parser.o -g -c
+
+./build/node.o: ./node.c
+	gcc ./node.c ${INCLUDES} -o ./build/node.o -g -c
+
+./build/token.o: ./token.c
+	gcc ./token.c ${INCLUDES} -o ./build/token.o -g -c
+
 clean:
-	rm ./main
-	rm -rf ${OBJECTS}
+	rm -f ./main
+	rm -f ${OBJECTS}

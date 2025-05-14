@@ -147,6 +147,5 @@ size_t vector_element_size(struct vector* vector);
  * Clones the given vector including all vector data, saves are ignored
  */
 struct vector* vector_clone(struct vector* vector);
-void* vector_get(struct vector* vector, int index);
 
 #endif

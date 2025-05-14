@@ -72,32 +72,3 @@ struct node* node_create(struct node* _node) {
     node_push(node);
     return node;
 }
-
-void print_ast(struct node* node, int indent) {
-    if (!node) return;
-
-    // Indentação
-    for (int i = 0; i < indent; i++)
-        printf("  ");
-
-    // Impressão por tipo de nó
-    switch (node->type) {
-        case NODE_TYPE_NUMBER:
-            printf("NUMBER: %llu\n", node->llnum);
-            break;
-        case NODE_TYPE_IDENTIFIER:
-            printf("IDENTIFIER: %s\n", node->sval);
-            break;
-        case NODE_TYPE_STRING:
-            printf("STRING: %s\n", node->sval);
-            break;
-        case NODE_TYPE_EXPRESSION:
-            printf("EXPRESSION: %s\n", node->exp.op);
-            print_ast(node->exp.left, indent + 1);
-            print_ast(node->exp.right, indent + 1);
-            break;
-        default:
-            printf("NODE TYPE: %d (não implementado na impressão)\n", node->type);
-            break;
-    }
-}

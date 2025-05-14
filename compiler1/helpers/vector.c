@@ -457,6 +457,3 @@ int vector_count(struct vector *vector)
 {
     return vector->count;
 }
-void* vector_get(struct vector* vector, int index) {
-    return vector_at(vector, index);
-}

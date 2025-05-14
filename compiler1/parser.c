@@ -1,105 +1,25 @@
 #include "compiler.h"
 #include "helpers/vector.h"
-#include <assert.h>
-#include "expressionable.h"
 
 static struct compile_process* current_process;
 static struct token* parser_last_token;
-struct history;
 
-// --- Prototypes ---
-void parse_expressionable(struct history* history);
-void parser_reorder_expression(struct node** node_out);
-void parser_node_shift_children_left(struct node* node);
-bool parser_left_op_has_priority(const char* op_left, const char* op_right);
-int parser_get_precedence_for_operator(const char* op, struct expressionable_op_precedence_group** group_out);
-void parse_expressionable_for_op(struct history* history, const char* op);
-struct history* history_down(struct history* history, int flags);
-static struct token* token_next();
-static struct token* token_peek_next();
-
-// --- External precedence table ---
-extern struct expressionable_op_precedence_group op_precedence[TOTAL_OPERADOR_GROUPS];
-
-// --- Estrutura de controle ---
+// Estrutura para passar comandos através de funções recursivas.
 struct history {
     int flags;
 };
 
-// --- Reordenador de expressão com base na precedência ---
-void parser_reorder_expression(struct node** node_out) {
-    struct node* node = *node_out;
-    if (node->type != NODE_TYPE_EXPRESSION) return;
-    if (!node->exp.left || !node->exp.right) return;
-    if (node->exp.left->type != NODE_TYPE_EXPRESSION && node->exp.right->type != NODE_TYPE_EXPRESSION)
-        return;
+void parse_expressionable(struct history* history);
+int parse_expressionable_single(struct history* history);
 
-    if (node->exp.left->type != NODE_TYPE_EXPRESSION &&
-        node->exp.right->type == NODE_TYPE_EXPRESSION) {
-
-        const char* right_op = node->exp.right->exp.op;
-        if (parser_left_op_has_priority(node->exp.op, right_op)) {
-            parser_node_shift_children_left(node);
-            parser_reorder_expression(&node->exp.left);
-            parser_reorder_expression(&node->exp.right);
-        }
-    }
-}
-
-// --- Move os filhos da direita para a esquerda na árvore de expressão ---
-void parser_node_shift_children_left(struct node* node) {
-    assert(node->type == NODE_TYPE_EXPRESSION);
-    assert(node->exp.right && node->exp.right->type == NODE_TYPE_EXPRESSION);
-
-    const char* right_op = node->exp.right->exp.op;
-    struct node* new_exp_left_node = node->exp.left;
-    struct node* new_exp_right_node = node->exp.right->exp.left;
-
-    make_exp_node(new_exp_left_node, new_exp_right_node, node->exp.op);
-    struct node* new_left_operand = node_pop();
-    struct node* new_right_operand = node->exp.right->exp.right;
-
-    node->exp.left = new_left_operand;
-    node->exp.right = new_right_operand;
-    node->exp.op = right_op;
-}
-
-// --- Tabela de precedência ---
-int parser_get_precedence_for_operator(const char* op, struct expressionable_op_precedence_group** group_out) {
-    *group_out = NULL;
-    for (int i = 0; i < TOTAL_OPERADOR_GROUPS; i++) {
-        for (int j = 0; op_precedence[i].operators[j]; j++) {
-            if (S_EQ(op, op_precedence[i].operators[j])) {
-                *group_out = &op_precedence[i];
-                return i;
-            }
-        }
-    }
-    return -1;
-}
-
-bool parser_left_op_has_priority(const char* op_left, const char* op_right) {
-    if (S_EQ(op_left, op_right)) return false;
-
-    struct expressionable_op_precedence_group* group_left = NULL;
-    struct expressionable_op_precedence_group* group_right = NULL;
-
-    int precedence_left = parser_get_precedence_for_operator(op_left, &group_left);
-    int precedence_right = parser_get_precedence_for_operator(op_right, &group_right);
-
-    if (group_left->associativity == ASSOCIATIVITY_RIGHT_TO_LEFT)
-        return false;
-
-    return precedence_left <= precedence_right;
-}
-
-// --- Histórico ---
+// Inicia um novo histórico com flags.
 struct history* history_begin(int flags) {
     struct history* history = calloc(1, sizeof(struct history));
     history->flags = flags;
     return history;
 }
 
+// Cria um novo histórico baseado em outro.
 struct history* history_down(struct history* history, int flags) {
     struct history* new_history = calloc(1, sizeof(struct history));
     memcpy(new_history, history, sizeof(struct history));
@@ -107,29 +27,33 @@ struct history* history_down(struct history* history, int flags) {
     return new_history;
 }
 
-// --- Token helpers ---
+// Ignora tokens do tipo comentário ou nova linha.
 static void parser_ignore_nl_or_comment(struct token* token) {
     while (token && discart_token(token)) {
+        // Pula o token que deve ser descartado no vetor.
         vector_peek(current_process->token_vec);
+        // Pega o próximo token para ver se ele também será descartado.
         token = vector_peek_no_increment(current_process->token_vec);
     }
 }
 
+// Recupera o próximo token, pulando comentários e novas linhas.
 static struct token* token_next() {
     struct token* next_token = vector_peek_no_increment(current_process->token_vec);
     parser_ignore_nl_or_comment(next_token);
-    current_process->pos = next_token->pos;
+    current_process->pos = next_token->pos; // Atualiza a posição do arquivo de compilação.
     parser_last_token = next_token;
     return vector_peek(current_process->token_vec);
 }
 
+// Apenas visualiza o próximo token sem consumir.
 static struct token* token_peek_next() {
     struct token* next_token = vector_peek_no_increment(current_process->token_vec);
     parser_ignore_nl_or_comment(next_token);
     return vector_peek_no_increment(current_process->token_vec);
 }
 
-// --- Parsing ---
+// Converte um token simples diretamente para nó.
 void parse_single_token_to_node() {
     struct token* token = token_next();
     struct node* node = NULL;
@@ -150,19 +74,24 @@ void parse_single_token_to_node() {
     }
 }
 
+// Inicia análise de expressão com operador.
 void parse_expressionable_for_op(struct history* history, const char* op) {
     parse_expressionable(history);
 }
 
-int parse_exp(struct history* history) {
+// Faz o parsing de uma expressão binária normal.
+void parse_exp_normal(struct history* history) {
     struct token* op_token = token_peek_next();
     const char* op = op_token->sval;
 
-    struct node* node_left = node_peek_expressionable_or_null();
-    if (!node_left) return -1;
 
+    struct node* node_left = node_peek_expressionable_or_null();
+    if (!node_left) return;
+
+    // Consome o token e o node
     token_next();
     node_pop();
+
     node_left->flags |= NODE_FLAG_INSIDE_EXPRESSION;
 
     parse_expressionable_for_op(history_down(history, history->flags), op);
@@ -171,14 +100,19 @@ int parse_exp(struct history* history) {
     node_right->flags |= NODE_FLAG_INSIDE_EXPRESSION;
 
     make_exp_node(node_left, node_right, op);
+
     struct node* exp_node = node_pop();
-
-    parser_reorder_expression(&exp_node);
+    // TODO: Inserir aqui código para reordenar a expressão se necessário.
     node_push(exp_node);
+}
 
+// Inicia o parsing de uma expressão com operador.
+int parse_exp(struct history* history) {
+    parse_exp_normal(history);
     return 0;
 }
 
+// Analisa um único token que pode fazer parte de uma expressão.
 int parse_expressionable_single(struct history* history) {
     struct token* token = token_peek_next();
     if (!token) return -1;
@@ -202,10 +136,12 @@ int parse_expressionable_single(struct history* history) {
     return res;
 }
 
+// Analisa uma sequência de tokens expressáveis.
 void parse_expressionable(struct history* history) {
     while (parse_expressionable_single(history) == 0) {}
 }
 
+// Processa o próximo elemento do código-fonte.
 int parse_next() {
     struct token* token = token_peek_next();
     if (!token) return -1;
@@ -223,6 +159,7 @@ int parse_next() {
     return 0;
 }
 
+// Função principal de parsing.
 int parse(struct compile_process* process) {
     current_process = process;
     parser_last_token = NULL;

@@ -1,5 +1,6 @@
 OBJECTS= ./build/main.o ./build/compiler.o ./build/cprocess.o ./build/helpers/buffer.o ./build/helpers/vector.o \
-         ./build/teste1.o ./build/lex_process.o ./build/lexer.o ./build/parser.o ./build/node.o ./build/token.o ./build/expressionable.o
+         ./build/teste1.o ./build/lex_process.o ./build/lexer.o ./build/parser.o ./build/node.o ./build/token.o
+
 
 INCLUDES= -I./
 
@@ -38,9 +39,6 @@ all: ${OBJECTS}
 
 ./build/token.o: ./token.c
 	gcc ./token.c ${INCLUDES} -o ./build/token.o -g -c
-
-./build/expressionable.o: ./expressionable.c
-	gcc ./expressionable.c ${INCLUDES} -o ./build/expressionable.o -g -c
 
 clean:
 	rm -f ./main

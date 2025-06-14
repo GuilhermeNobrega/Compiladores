@@ -86,7 +86,8 @@ void print_node(struct node* node, int indent) {
             break;
         case NODE_TYPE_VARIABLE:
             printf("VARIABLE: name=%s", node->var.name ? node->var.name : "NULL");
-            if (node->var.type) printf(", has type");
+            //if (node->var.type) printf(", has type");
+            printf(", has type");
             if (node->var.val) {
                 printf(", value:\n");
                 print_node(node->var.val, indent + 1);

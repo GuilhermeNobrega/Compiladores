@@ -304,7 +304,6 @@ enum {
 
 struct datatype;  // Forward declaration
 
-// Estrutura de um nó sintático
 struct node {
     int type;
     int flags;
@@ -312,7 +311,7 @@ struct node {
 
     struct node_binded {
         struct node* owner;
-        struct node* function; // Corrigido de "funtion"
+        struct node* funtion; // (apesar do typo, mantenha igual ao código que já funciona)
     } binded;
 
     union {
@@ -332,10 +331,14 @@ struct node {
         } exp;
 
         struct var {
-            struct datatype* type;
+            struct datatype type;
             const char* name;
             struct node* val;
         } var;
+
+        struct varlist {
+            struct vector* list;
+        } var_list;
     };
 };
 

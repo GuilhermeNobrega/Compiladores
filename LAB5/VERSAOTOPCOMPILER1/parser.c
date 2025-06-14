@@ -105,7 +105,7 @@ void make_variable_node(struct datatype* dtype, struct token* name_token, struct
     node_create(&(struct node){
         .type = NODE_TYPE_VARIABLE,
         .var.name = name_str,
-        .var.type = dtype,
+        .var.type = *dtype,
         .var.val = value_node
     });
 }
@@ -122,6 +122,7 @@ void parse_variable_function_or_struct_union(struct history* history) { // LAB5 
     // TODO: Verificar se eh uma declaracao de funcao. Ex: "int a()".
 
     parse_variable(&dtype, name_token, history);
+    
 }
 
 void parse_datatype_modifiers(struct datatype* dtype) { // LAB5
